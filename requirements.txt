@@ -1,0 +1,9 @@
+# install requirements > modified from Yet-Another-EfficientDet-Pytorch
+pycocotools
+numpy
+opencv-python
+tqdm
+tensorboard
+tensorboardX
+pyyaml
+webcolors
