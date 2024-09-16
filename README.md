@@ -1,6 +1,6 @@
 # RAITE 2024
 RAITE 2024 Code and Details
 
-These files are used for RAITE 2024. File structure is broken up by Red/Blue Team. 
+Each of the above folders are assocaited with a specific scenario for RAITE 2024. Each contains a text file with links to the associated data.
 
 All files should be Distribution A. 
