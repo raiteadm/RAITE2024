@@ -1,0 +1,1 @@
+Data for scenario 6 is the same as scenario 5. Please navigate to scenario 5 folder to access the data.
