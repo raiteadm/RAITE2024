@@ -57,6 +57,7 @@ Please read `main.py` to find out more about each command line argument, or run 
 This is an example command, which:
 * Loads a D3 type efficientdet model
 * loads pre-trained weights from the file path (`./weights/efficientdet-d3.pth`)
+* model_type must match the efficientdet  subarchitecture - for example, if the weights of the model correspond to the D3 subarchitecture (ex: `./weights/efficientdet-d3.pth`), then the model type must be: `--model_type=3`.
 * loads images, videos, or both from the given data path (`./data/`)
 * writes the data to a folder (`./inference/`)
 * processes the images in sets of 32 (based on GPU capabilities)
