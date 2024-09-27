@@ -1,3 +1,6 @@
 *.jpg
 *.avi
+*.mp4
+*.mkv
+./inference/
 __pycache__

@@ -61,4 +61,4 @@ This is an example command, which:
 * writes the data to a folder (`./inference/`)
 * processes the images in sets of 32 (based on GPU capabilities)
 
-`> python ./main.py --model_type=3 --weights_path="./weights/efficientdet-d3.pth" --data_path="./data/" --write_data=True --output_dir="./inference/" --batch_size=32`
+`> python ./main.py --model_type=3 --weights_path="./weights/efficientdet-d3.pth" --data_path="./data/" --write_data=True --output_dir="./inference/" --batch_size=1`

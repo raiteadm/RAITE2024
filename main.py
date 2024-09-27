@@ -28,7 +28,7 @@ from utils.utils import preprocess, preprocess_video, invert_affine, postprocess
 
 COLOR_LIST = standard_to_bgr(STANDARD_COLORS)
 IMAGE_FILE_TYPES : list [ str ] = [ '.jpg', '.png' ]
-VIDEO_FILE_TYPES : list [ str ] = [ '.mp4', '.avi' ]
+VIDEO_FILE_TYPES : list [ str ] = [ '.mp4', '.avi', '.mkv']
 
 
 def main(args : argparse.Namespace) -> None:
