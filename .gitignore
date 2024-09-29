@@ -2,5 +2,6 @@
 *.avi
 *.mp4
 *.mkv
+*.webm
 ./inference/
 __pycache__

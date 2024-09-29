@@ -63,3 +63,11 @@ This is an example command, which:
 * processes the images in sets of 32 (based on GPU capabilities)
 
 `> python ./main.py --model_type=3 --weights_path="./weights/efficientdet-d3.pth" --data_path="./data/" --write_data=True --output_dir="./inference/" --batch_size=1`
+
+The below command is an example which uses live input - the flag `--live_input` is passed an integer representing the **camera id** of the camera attached to the device (ex: a built-in webcam may have an id of `0`). When performing live inference, the flag `--data_path` is ignored.
+
+`> python ./main.py --model_type=3 --weights_path="./weights/efficientdet-d3.pth" --live_input=0 --write_data=True --output_dir="./inference/" --batch_size=1`
+
+## TODO
+* Fix video feed thing to take in raw video feed
+* re-train d2 model on flir

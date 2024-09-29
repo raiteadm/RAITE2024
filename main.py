@@ -28,7 +28,7 @@ from utils.utils import preprocess, preprocess_video, invert_affine, postprocess
 
 COLOR_LIST = standard_to_bgr(STANDARD_COLORS)
 IMAGE_FILE_TYPES : list [ str ] = [ '.jpg', '.png' ]
-VIDEO_FILE_TYPES : list [ str ] = [ '.mp4', '.avi', '.mkv']
+VIDEO_FILE_TYPES : list [ str ] = [ '.mp4', '.avi', '.mkv', '.webm' ]
 
 
 def main(args : argparse.Namespace) -> None:
@@ -65,8 +65,17 @@ def main(args : argparse.Namespace) -> None:
     if args.use_float16:
         model = model.half()
     
+    # initialize data variable
+    data : list [ ModelInput ] = []
+
+    # if user  wants to process a live video feed, then make a Live Video Input
+    if args.live_input != -1:
+        data.append(LiveVideoInput(args=args, input_size=input_size, camera_id=int(args.live_input)))
+    else:
+        # load inference data
+        data : list [ ModelInput ] = get_model_inputs(args=args, input_size=input_size)
+
     # archive inference data
-    data : list [ ModelInput ] = get_model_inputs(args=args, input_size=input_size)
     for i,model_input in enumerate(data):
         print(f"Beginning ModelInput {i}...")
         # get generator for this model input
@@ -92,6 +101,10 @@ def main(args : argparse.Namespace) -> None:
 
 # display detections on the given input images
 def display(preds, imgs, file_paths:list[str], obj_list:list[str], imshow:bool=True, imwrite:bool=False) -> None:
+    # swap tuple outputs for list
+    if type(imgs) == tuple:
+        imgs = list(imgs)
+    
     for i in range(len(imgs)):
         # if no predictions are found, skip
         if len(preds[i]['rois']) == 0:
@@ -153,7 +166,7 @@ class VideoInput(ModelInput):
         self.video_path : str = video_path
     
     # generate tensor batches from the video to be processed
-    def gen(self) -> Generator [ tuple [ torch.Tensor, object, object ], None, None]:
+    def gen(self) -> Generator [ tuple [ torch.Tensor, object, object, list[str] ], None, None]:
         # Video capture
         cap = cv2.VideoCapture(self.video_path)
 
@@ -178,7 +191,69 @@ class VideoInput(ModelInput):
             x = x.to(torch.float32 if not self.use_float16 else torch.float16).permute(0, 3, 1, 2)
         
             file_paths : list [ str ] = [ 
-                os.path.join(args.output_dir, f"{self.video_path}_{i}.jpg") for i in range(frame_num, len(frames)) ]
+                os.path.join(args.output_dir, f"{os.path.basename(self.video_path)}_{i}.jpg") for i in range(frame_num, frame_num + len(frames)) ]
+            frame_num += len(frames)
+            
+            # yield the values (Generator)
+            yield (x, ori_imgs, framed_metas, file_paths)
+        # once exhausted, this generator will return None
+
+    def _get_batch_imgs(self, cap : cv2.VideoCapture) -> list [ cv2.typing.MatLike ]:
+        # get the image or as many exists until the video stream runs out
+        img_count : int = 0
+        frames : list [ cv2.typing.MatLike ] = []
+        keep_going : bool = True
+        while (img_count < self.batch_size) and (keep_going == True):
+            # grab a frame from the video
+            ret, frame = cap.read()
+            
+            # if no more frames, finish loop
+            if ret == False:
+                keep_going = False
+                continue
+        
+            # if there are frames, add them to the list of frames
+            frames.append(frame)
+            
+            # increment img_count
+            img_count += 1
+        return frames
+    
+
+# class defining input data generation for video files
+class LiveVideoInput(ModelInput):
+    def __init__ ( self, args : argparse.Namespace, input_size : int, camera_id : int ) -> None:
+        super().__init__(args=args, input_size=input_size)
+        self.video_path : str = f"live_video_id_{camera_id}"
+        self.camera_id : int = camera_id
+    
+    # generate tensor batches from the video to be processed
+    def gen(self) -> Generator [ tuple [ torch.Tensor, object, object, list[str] ], None, None]:
+        # Video capture
+        cap = cv2.VideoCapture(self.camera_id)
+
+        frame_num : int = 0
+        keep_going : bool = True
+        while keep_going:
+            # get up to batch_size frames
+            frames : list [ cv2.typing.MatLike ] = self._get_batch_imgs(cap=cap)
+            
+            if len(frames) == 0:
+                keep_going = False
+                continue
+
+            # frame preprocessing
+            ori_imgs, framed_imgs, framed_metas = preprocess_video(*frames, max_size=self.input_size)
+
+            if self.use_gpu:
+                x = torch.stack([torch.from_numpy(fi).cuda() for fi in framed_imgs], 0)
+            else:
+                x = torch.stack([torch.from_numpy(fi) for fi in framed_imgs], 0)
+
+            x = x.to(torch.float32 if not self.use_float16 else torch.float16).permute(0, 3, 1, 2)
+        
+            file_paths : list [ str ] = [ 
+                os.path.join(args.output_dir, f"{self.video_path}_{i}") for i in range(frame_num, frame_num + len(frames)) ]
             frame_num += len(frames)
             
             # yield the values (Generator)
@@ -214,7 +289,7 @@ class ImageInput(ModelInput):
         self.file_paths : list [ str ] = file_paths
     
     # generate tensor batches from the image files to be processed
-    def gen(self) -> Generator [torch.Tensor, None, None]:
+    def gen(self) -> Generator [tuple [ torch.Tensor, object, object, list[str] ], None, None]:
         for i in range(0, len(self.file_paths) // self.batch_size):
             # get up to batch_size frames
             start : int = i*self.batch_size
@@ -285,6 +360,8 @@ if __name__ == "__main__":
                         help='The path to the pytorch model weights for the efficientdet model.')
     parser.add_argument('-d', '--data_path', type=str, default="./data/",
                         help='The path to the data you want to run inference on. All files in this directory will be ran into the model.')
+    parser.add_argument('-l', '--live_input', type=int, default=-1,
+                        help='Whether or not to take live video from a camera. The value passed in is the camera id. -1 means disable live video.' )
     parser.add_argument('-i', '--forced_input_size', type= tuple [ int | None ], default=None,
                         help='The input size the images should be forced to. If set to None, will select image input size based on model size (D0-D7).')
     parser.add_argument('-conf_t', '--confidence_threshold', type=float, default=0.2,
